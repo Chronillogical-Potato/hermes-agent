@@ -603,8 +603,9 @@ def _scan_gateway_pids(
 
         # Root home: reject argv that advertises another profile in any spelling the CLI pre-parser
         # accepts (``--profile=ops`` slipped past a substring test, so a default-profile fallback stop
-        # could SIGTERM the named gateway) or a HERMES_HOME= naming another home.
-        if profile_flag_value(command_lc) is not None:
+        # could SIGTERM the named gateway) or a HERMES_HOME= naming another home. An explicit
+        # ``--profile default`` names this home (#100817).
+        if profile_flag_value(command_lc) not in (None, "default"):
             return False
         if hermes_home_assignments(command_lc):
             return command_line_names_hermes_home(command_lc, current_home_lc)
@@ -4591,6 +4592,8 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False, fo
     _guard_existing_gateway_process_conflict(replace=replace)
     sys.path.insert(0, str(PROJECT_ROOT))
     _apply_startup_watchdog_config()
+    from hermes_cli.observability.shared_metrics_process import begin_process
+    begin_process("gateway")
 
     # Detached Windows runs (HERMES_GATEWAY_DETACHED=1, or non-TTY for older wrappers) ignore
     # console-control broadcasts from sibling CLIs; foreground runs keep Ctrl+C-to-stop.
@@ -5690,41 +5693,6 @@ def _gateway_command_inner(args):
     handler = _GATEWAY_SUBCOMMANDS.get(getattr(args, "gateway_command", None))
     if handler is not None:
         handler(args)
-
-
-# ---- BEGIN PLUGIN-COMPAT (revert-scheduled; see COMPAT_MANIFEST.md) ----
-# Names external plugins imported from this module before the Sep 2026 decomposition.
-# Internal code MUST NOT use these (scripts/check_compat_pointers.py fails CI if it does).
-# The whole block is removed by reverting the commit that added it.
-
-def print_systemd_linger_guidance() -> None:
-    """Print the current linger status and the fix when it is disabled."""
-    linger_enabled, linger_detail = get_systemd_linger_status()
-    if linger_enabled is True:
-        print("✓ Systemd linger is enabled (service survives logout)")
-    elif linger_enabled is False:
-        print("⚠ Systemd linger is disabled (gateway may stop when you log out)")
-        print("  Run: sudo loginctl enable-linger $USER")
-    else:
-        print(f"⚠ Could not verify systemd linger ({linger_detail})")
-        print("  If you want the gateway user service to survive logout, run:")
-        print("  sudo loginctl enable-linger $USER")
-
-
-_PLUGIN_COMPAT_LAZY = {
-    'DEFAULT_GATEWAY_RESTART_AFTER_TURN_TIMEOUT': ('gateway.restart', 'DEFAULT_GATEWAY_RESTART_AFTER_TURN_TIMEOUT'),
-}
-
-
-def __getattr__(name):  # PEP 562 — lazy so no import cycles
-    target = _PLUGIN_COMPAT_LAZY.get(name)
-    if target is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    import importlib
-    from hermes_cli.plugin_compat import warn_once
-    warn_once(__name__, name, *target)
-    return getattr(importlib.import_module(target[0]), target[1])
-# ---- END PLUGIN-COMPAT ----
 
 
 def _pm_runtime_venv_dir(project_root: Path | None = None) -> Path | None:
