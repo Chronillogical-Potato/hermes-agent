@@ -433,6 +433,14 @@ def _finalize_session(session: dict | None, end_reason: str = "tui_close") -> No
         interrupt_for_session(
             session_key=str(session_key or "") if _tui_owns_lifecycle else "",
             origin_ui_session_id=_lifecycle_own_sid(session), reason=end_reason)
+    # Session-persistent code kernels (execute_code) share this owner key and die at the same boundary, like the
+    # gateway's /stop and /new (approval.clear_session); otherwise each finished conversation keeps a live
+    # interpreter until kernel_idle_timeout. Only when the TUI owns the lifecycle: a viewer tab over a
+    # gateway-owned session must not kill the gateway's kernels.
+    if _tui_owns_lifecycle and session_key:
+        with contextlib.suppress(Exception):
+            from tools.approval import clear_session
+            clear_session(str(session_key))
     # Close the slash-worker in this single ``_finalized``-guarded chokepoint (a direct caller can't leak it); idempotent.
     with contextlib.suppress(Exception):
         if worker := session.get("slash_worker"):
@@ -549,8 +557,45 @@ def _settle_isolated_turn_before_close(session: dict) -> None:
             return
         session["_deferred_active_session_lease"] = lease
         _deferred_active_session_leases[str(lease.lease_id)] = lease
+        _deferred_active_session_lease_ages[str(lease.lease_id)] = time.time()
     logger.warning("isolated turn still live after %.1fs close grace; holding lease for %s until the child settles",
                    _TURN_SETTLE_BEFORE_CLOSE_SECONDS, session.get("session_key"))
+
+
+# A deferred lease is released by the compute-host turn's completion callback
+# (_on_compute_host_turn_done → _release_deferred_active_session_lease). If that callback
+# is lost — supervisor restart/reload, a child killed without failing its pending turns,
+# a dropped completion — the lease sits in the registry FOREVER: _own_live_lease_ids
+# vouches for it, so the orphan sweep never reclaims it, and the concurrency cap treats
+# the dead session as active (#62823 zombie slot). A deferred lease past this generous
+# ceiling (the longest legitimate isolated turn is the compression ceiling, minutes) is
+# force-released by the reaper tick instead of leaking the slot until process exit.
+_DEFERRED_ACTIVE_SESSION_LEASE_TTL_SECONDS = 1800.0
+_deferred_active_session_lease_ages: dict[str, float] = {}
+
+
+def _reap_stale_deferred_leases(now: float | None = None) -> int:
+    """Force-release deferred leases whose settlement callback never arrived. Returns the count."""
+    now = time.time() if now is None else now
+    stale = [
+        lease_id for lease_id, deferred_at in list(_deferred_active_session_lease_ages.items())
+        if now - deferred_at > _DEFERRED_ACTIVE_SESSION_LEASE_TTL_SECONDS
+    ]
+    reaped = 0
+    for lease_id in stale:
+        _deferred_active_session_lease_ages.pop(lease_id, None)
+        lease = _deferred_active_session_leases.pop(lease_id, None)
+        if lease is None:
+            continue
+        if (err := _lease_retry(3, lease.release)) is not None:
+            logger.warning("Failed to force-release stale deferred active session lease %s", lease_id,
+                           exc_info=err)
+            continue
+        logger.warning("Force-released deferred active session lease %s held past %.0fs without a "
+                       "compute-host settlement (zombie concurrency slot, #62823)",
+                       lease_id, _DEFERRED_ACTIVE_SESSION_LEASE_TTL_SECONDS)
+        reaped += 1
+    return reaped
 
 
 def _release_deferred_active_session_lease(session: dict) -> None:
@@ -559,6 +604,7 @@ def _release_deferred_active_session_lease(session: dict) -> None:
     if lease is None:
         return
     _deferred_active_session_leases.pop(str(lease.lease_id), None)
+    _deferred_active_session_lease_ages.pop(str(lease.lease_id), None)
     if (err := _lease_retry(3, lease.release)) is not None:
         logger.warning("Failed to release deferred active session slot", exc_info=err)
 
@@ -609,12 +655,16 @@ def _interrupt_session_turn(sid: str, session: dict, *, request_id: str | None =
         # Sibling of gateway/run_agent_cache.py::_interrupt_and_clear_session: a user-initiated stop of a
         # live TUI/desktop turn is the same "loop is gone" event for plugins holding per-turn external
         # resources. Observer-only; dispatch failures never break the interrupt.
+        # Every caller (session.interrupt RPC, orphan/idle reapers, lease takeover) is off-turn, so bind the
+        # SESSION's profile as _finalize_session does or an observer's get_hermes_home() names the launch
+        # profile (#125063). hydrate_secrets=False: observer-only, /stop must stay fast.
         try:
             from hermes_cli.plugins import invoke_hook as _invoke_hook
-            _invoke_hook(
-                "agent_loop_stopped", session_key=session.get("session_key", ""), platform="tui",
-                reason="user_stop", invalidation_reason="session_interrupt",
-            )
+            with _session_profile_runtime_scope(session, hydrate_secrets=False):
+                _invoke_hook(
+                    "agent_loop_stopped", session_key=session.get("session_key", ""), platform="tui",
+                    reason="user_stop", invalidation_reason="session_interrupt",
+                )
         except Exception:
             logger.debug("agent_loop_stopped hook dispatch failed", exc_info=True)
     if not use_compute_host:
