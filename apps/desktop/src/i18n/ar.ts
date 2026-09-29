@@ -426,7 +426,7 @@ export const ar = defineLocale({
       'view.toggleRightSidebar': 'تبديل متصفح الملفات',
       'view.toggleReview': 'تبديل لوحة المراجعة',
       'view.showFiles': 'إظهار متصفح الملفات',
-      'view.showBrowser': 'فتح المتصفح',
+      'view.showBrowser': 'تبديل المتصفح',
       'view.showTerminal': 'إظهار الطرفية',
       'view.closeTab': 'إغلاق علامة التبويب',
       'view.reopenTab': 'إعادة فتح علامة التبويب المغلقة',
@@ -1539,7 +1539,8 @@ export const ar = defineLocale({
     gatewayStopped: 'البوابة متوقفة',
     hermesActiveSessions: (version, count) => `Hermes ${version} لديه ${count} جلسة نشطة`,
     restartGateway: 'إعادة تشغيل البوابة',
-    openBrowser: 'فتح المتصفح',
+    openBrowser: 'تبديل المتصفح',
+    toggleBrowser: 'تبديل المتصفح',
     gatewayRestartFailed: 'فشل إعادة تشغيل البوابة.',
     sharedGatewayRestartTitle: 'إعادة تشغيل البوابة المشتركة؟',
     sharedGatewayRestartDescription: bots => `تتم إعادة اتصال جميع البوتات على هذا الجهاز: ${bots}`,
@@ -3179,6 +3180,7 @@ export const ar = defineLocale({
     hideTabStrip: 'إخفاء علامات التبويب',
     showStripTab: title => `إظهار ${title}`,
     hideStripTab: title => `إخفاء ${title}`,
+    zoneMenuLabel: title => `خيارات المنطقة لـ ${title}`,
     lastTabKeptTitle: 'يبقى آخر تبويب',
     lastTabKeptBody:
       'تحتاج هذه المنطقة إلى تبويب مرئي واحد على الأقل. أظهر تبويبا آخر أولا، أو اطو الشريط الجانبي بأكمله.',
@@ -3357,9 +3359,7 @@ export const ar = defineLocale({
       other: 'غير ذلك',
       placeholder: 'اكتب إجابتك...',
       skip: 'تخطي',
-      continueLabel: 'متابعة',
       confirmAndContinueLabel: 'تأكيد ومتابعة',
-      answeredBadge: 'تمت الإجابة',
       questionProgress: (answered, total) => `تمت الإجابة على ${answered} من ${total}`
     },
     tool: {

@@ -732,7 +732,7 @@ export const deOverrides = {
       'view.toggleProfileRail': 'Profil-Leiste ein-/ausblenden',
       'view.toggleSimpleMode': 'Einfachen Modus umschalten',
       'view.showFiles': 'Dateibrowser anzeigen',
-      'view.showBrowser': 'Browser öffnen',
+      'view.showBrowser': 'Browser umschalten',
       'view.toggleHud': 'HUD-Modus umschalten',
       'hud.snapToPointer': 'HUD zum Zeiger bewegen (global, während HUD offen ist)',
       'view.showTerminal': 'Terminal umschalten',
@@ -3174,7 +3174,8 @@ export const deOverrides = {
     gatewayStopped: 'Messaging-Gateway gestoppt',
     hermesActiveSessions: (version, count) => `Hermes ${version} · Aktive Sessions ${count}`,
     restartGateway: 'Gateway neu starten',
-    openBrowser: 'Browser öffnen',
+    openBrowser: 'Browser umschalten',
+    toggleBrowser: 'Browser umschalten',
     gatewayRestartFailed: 'Gateway-Neustart fehlgeschlagen.',
     sharedGatewayRestartTitle: 'Gemeinsames Gateway neu starten?',
     sharedGatewayRestartDescription: bots => `Alle Bots auf diesem Gerät verbinden sich neu: ${bots}`,
@@ -5364,6 +5365,7 @@ export const deOverrides = {
     hideTabStrip: 'Tabs ausblenden',
     showStripTab: title => `${title} anzeigen`,
     hideStripTab: title => `${title} ausblenden`,
+    zoneMenuLabel: title => `Zonenoptionen für ${title}`,
     lastTabKeptTitle: 'Letzter Tab bleibt',
     lastTabKeptBody:
       'Diese Zone braucht mindestens einen sichtbaren Tab. Zeigen Sie zuerst einen anderen Tab an oder klappen Sie die ganze Seitenleiste ein.',
@@ -5707,14 +5709,9 @@ export const deOverrides = {
       placeholder: 'Geben Sie Ihre Antwort ein…',
       skip: 'Überspringen',
       skipped: 'Übersprungen',
-      continueLabel: 'Weiter',
+      noAnswer: 'Keine Antwort',
       confirmAndContinueLabel: 'Bestätigen und fortfahren',
-      answeredBadge: 'Beantwortet',
       questionProgress: (answered, total) => `${answered} von ${total} beantwortet`,
-      lateAnswer: (question, choice) => `Re: „${question}“ — meine Antwort: ${choice}`,
-      lateAnswerTip: 'Diese Antwort als Folgenachricht entwerfen',
-      lateAnswerHint:
-        'Dieser Prompt wartet nicht mehr. Wählen Sie eine Option, um sie als Folgenachricht zu entwerfen.',
       notDelivered:
         'Diese Frage hat die App nicht erreicht und kann hier nicht beantwortet werden. Klicken Sie auf Stopp, um den Durchgang zu beenden, und antworten Sie dann im Chat.'
     },

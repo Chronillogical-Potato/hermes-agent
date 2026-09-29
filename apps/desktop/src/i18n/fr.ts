@@ -732,7 +732,7 @@ export const frOverrides = {
       'view.toggleProfileRail': 'Afficher ou masquer la barre des profils',
       'view.toggleSimpleMode': 'Activer ou désactiver le mode simple',
       'view.showFiles': "Afficher l'explorateur de fichiers",
-      'view.showBrowser': 'Ouvrir le navigateur',
+      'view.showBrowser': 'Basculer le navigateur',
       'view.toggleHud': 'Basculer le mode HUD',
       'hud.snapToPointer': 'Déplacer le HUD vers le pointeur (global, lorsque le HUD est ouvert)',
       'view.showTerminal': 'Basculer le terminal',
@@ -3187,7 +3187,8 @@ export const frOverrides = {
     gatewayStopped: 'Gateway de messagerie arrêté',
     hermesActiveSessions: (version, count) => `Hermes ${version} · Sessions actives ${count}`,
     restartGateway: 'Redémarrer le gateway',
-    openBrowser: 'Ouvrir le navigateur',
+    openBrowser: 'Basculer le navigateur',
+    toggleBrowser: 'Basculer le navigateur',
     gatewayRestartFailed: 'Échec du redémarrage du gateway.',
     sharedGatewayRestartTitle: 'Redémarrer le gateway partagé ?',
     sharedGatewayRestartDescription: bots => `Tous les bots de cet appareil se reconnecteront : ${bots}`,
@@ -5380,6 +5381,7 @@ export const frOverrides = {
     hideTabStrip: 'Masquer les onglets',
     showStripTab: title => `Afficher ${title}`,
     hideStripTab: title => `Masquer ${title}`,
+    zoneMenuLabel: title => `Options de zone pour ${title}`,
     lastTabKeptTitle: 'Le dernier onglet reste affiché',
     lastTabKeptBody:
       "Cette zone doit conserver au moins un onglet visible. Affichez d'abord un autre onglet ou repliez toute la barre latérale.",
@@ -5721,14 +5723,9 @@ export const frOverrides = {
       placeholder: 'Saisissez votre réponse…',
       skip: 'Passer',
       skipped: 'Ignoré',
-      continueLabel: 'Continuer',
+      noAnswer: 'Pas de réponse',
       confirmAndContinueLabel: 'Confirmer et continuer',
-      answeredBadge: 'Répondu',
       questionProgress: (answered, total) => `${answered} réponse${answered === 1 ? '' : 's'} sur ${total}`,
-      lateAnswer: (question, choice) => `Re : « ${question} » — ma réponse : ${choice}`,
-      lateAnswerTip: 'Rédiger cette réponse comme message de suivi',
-      lateAnswerHint:
-        "Cette invite n'attend plus de réponse. Choisissez une option pour la rédiger comme message de suivi.",
       notDelivered:
         "Cette question n'a pas atteint l'app, elle ne peut donc pas être répondue ici. Appuyez sur Arrêter pour terminer le tour, puis répondez dans le chat."
     },
