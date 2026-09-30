@@ -39,7 +39,7 @@ hermes config edit         # Open config.yaml in your editor
 hermes config get KEY      # Print a resolved value
 hermes config set KEY VAL  # Set a specific value
 hermes config unset KEY    # Remove a user-set value
-hermes config check        # Check for missing options (after updates)
+hermes config check        # Check for missing options and stale saved selections
 hermes config migrate      # Interactively add missing options
 
 # Examples:
@@ -1438,6 +1438,12 @@ attachment. The first ~1,000 characters of that paste are handed to the title st
 title-only hint (the agent turn still sees only the attachment reference), so a "summarize
 this" plus a large paste is named after the pasted topic. Files you attach yourself are never
 read for titling.
+
+In the local messaging gateway, text messages supply their original request to
+session titling, before channel-bound skills and platform context are added.
+The main model and conversation history still retain the full skill content.
+Attachment-only turns retain the existing enriched-message title fallback.
+This affects new title generation; it does not repair previously named sessions.
 
 ### Stream-only endpoints
 
