@@ -1,6 +1,7 @@
 """Tests for the gateway platform reconnection watcher."""
 
 import asyncio
+import threading
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -357,6 +358,42 @@ class TestPlatformReconnectWatcher:
         # next_retry is pushed out by the backoff (capped at 300s), not inf.
         assert info["next_retry"] != float("inf")
         assert info["next_retry"] > time.monotonic()
+
+
+    @pytest.mark.asyncio
+    async def test_failed_plugin_load_is_rearmed_by_the_watcher(self, monkeypatch):
+        """An unregistered plugin platform (its deferred load failed at startup) heals on the next watcher
+        tick: the adapter_unavailable branch re-arms the failed load instead of waiting for a manual
+        reload-plugins or restart (#126356)."""
+        import hermes_cli.plugins as plugins_mod
+
+        runner = _make_runner()
+        runner._update_platform_runtime_status = MagicMock()
+        runner._install_reconnected_adapter = AsyncMock()
+        platform = Platform("irc")  # bundled plugin platform (not a builtin adapter)
+        monkeypatch.setattr(runner, "_adapter_may_heal", lambda p, c: True)
+        runner._failed_platforms[platform] = {
+            "config": PlatformConfig(enabled=True), "attempts": 0, "next_retry": 0,
+        }
+        rearmed, healed, on_loop = [], [], []
+        manager = MagicMock()
+        manager.rearm_failed_platform.side_effect = lambda name: rearmed.append(name) or on_loop.append(
+            threading.current_thread() is threading.main_thread()) or True
+        monkeypatch.setattr(plugins_mod, "get_plugin_manager", lambda: manager)
+        adapter = StubAdapter(platform=platform)
+        monkeypatch.setattr(runner, "_create_adapter", lambda p, c: adapter if rearmed and healed else None)
+        monkeypatch.setattr("gateway.platform_registry.platform_registry.get",
+                            lambda name: on_loop.append(threading.current_thread() is threading.main_thread()))
+
+        for tick in range(6):
+            if tick == 5:
+                healed.append(True)
+            runner._failed_platforms.get(platform, {})["next_retry"] = 0
+            await runner._reconnect_failed_platform(platform, time.monotonic())
+
+        assert rearmed == ["irc"] * 3  # a permanently broken plugin stops being re-imported after the cap
+        assert on_loop and not any(on_loop)  # neither the re-arm nor the plugin load blocks the event loop
+        runner._install_reconnected_adapter.assert_awaited_once_with(platform, adapter)
 
 
 # --- Runtime disconnection queueing ---

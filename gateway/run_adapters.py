@@ -41,6 +41,7 @@ if TYPE_CHECKING:  # string annotations only; never imported at runtime (cycle)
 # Log-record parity with the origin module.
 logger = logging.getLogger("gateway.run")
 _UNSET = object()  # "no per-profile human_delay snapshot": fall back to the primary's value
+_MAX_PLUGIN_LOAD_REARMS = 3  # per queued platform: transient load failures heal, a broken plugin stops re-importing
 
 
 def _adapter_unavailable_message(platform: Platform, *, retrying: bool = True) -> str:
@@ -811,6 +812,9 @@ class GatewayAdapterLifecycleMixin:
         logger.info("Reconnecting %s (attempt %d)...", platform.value, attempt)
         adapter = None
         try:
+            from gateway.platform_registry import platform_registry
+            # A re-armed plugin import + register() joins its load deadline: run it off the event loop.
+            await self._run_in_executor_with_context(platform_registry.get, platform.value)
             adapter = self._create_adapter(platform, platform_config)
             if not adapter:
                 if not self._adapter_may_heal(platform, platform_config):
@@ -822,7 +826,13 @@ class GatewayAdapterLifecycleMixin:
                     )
                     self._drop_from_reconnect_queue(platform, "adapter creation returned None")
                     return
-                # Unregistered plugin: keep it queued so it heals once the plugin registers.
+                # Unregistered plugin: keep it queued and re-arm a failed load (capped) for the next tick.
+                from hermes_cli.plugins import get_plugin_manager
+                rearms = info.get("load_rearms", 0)
+                # Off the loop: the re-arm takes the manager's discovery lock, which a sweep or deferred load holds.
+                if rearms < _MAX_PLUGIN_LOAD_REARMS and await self._run_in_executor_with_context(
+                        get_plugin_manager().rearm_failed_platform, platform.value):
+                    info["load_rearms"] = rearms + 1
                 backoff = self._bump_reconnect_backoff(
                     platform, info, attempt, "adapter_unavailable", _adapter_unavailable_message(platform),
                 )
